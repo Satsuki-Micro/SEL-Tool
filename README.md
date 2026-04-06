@@ -1,6 +1,4 @@
-## <div align=center>大觀領航．美感 AI</div>
-
-- [點擊前往網站](https://satsuki-micro.github.io/SEL-Tool/)
+## <div align=center>大觀領航．美感 AI | [前往網站](https://satsuki-micro.github.io/SEL-Tool/)</div>
 
 本網站功能如下
 
