@@ -1,0 +1,276 @@
+<!-- 前端介面代碼(HTML + CSS + JavaScript) -->
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>大觀領航．美感 AI｜SEL × 108課綱評估系統</title>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <style>
+      :root {
+        --bg: #fdf8f2; --bg2: #f5ede0; --primary: #c06418; --t1: #2d1f0e; --t2: #7a5c3e; --bd: rgba(160,110,60,0.13);
+      }
+      body { font-family: "PingFang TC", "微軟正黑體", sans-serif; background: var(--bg); color: var(--t1); margin: 0; padding: 0; }
+      .app-container { max-width: 900px; margin: 0 auto; padding: 20px; }
+      header { text-align: center; padding: 30px 10px; background: #fff; border-bottom: 2px solid var(--primary); margin-bottom: 20px; }
+      h1 { color: var(--primary); margin: 0; font-size: 24px; }
+      
+      #login-overlay { text-align: center; padding: 40px; background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; }
+      #main-content { display: none; }
+
+      .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--bd); }
+      .form-group { margin-bottom: 15px; }
+      label { display: block; font-weight: bold; color: var(--t2); margin-bottom: 5px; }
+      input, textarea, select { width: 100%; padding: 12px; border: 1px solid var(--bd); border-radius: 8px; font-size: 16px; }
+      
+      button { background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; transition: opacity 0.2s; }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      button.secondary { background: #7a5c3e; margin-top: 10px; }
+
+      #lpOutput { display: none; background: #fff; border-left: 5px solid var(--primary); padding: 25px; margin-top: 20px; }
+      #lpContent { white-space: pre-wrap; line-height: 1.8; color: var(--t1); font-size: 16px; }
+      
+      #loading { display: none; text-align: center; padding: 20px; color: var(--primary); font-weight: bold; }
+      .loading-spinner { border: 4px solid rgba(192, 100, 24, 0.1); border-top: 4px solid var(--primary); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+
+    <header>
+      <h1>大觀領航．美感 AI</h1>
+      <p>基於 UbD 逆向設計的 SEL 課綱評估工具</p>
+    </header>
+
+    <div class="app-container">
+      
+      <!-- 1. Google 登入入口 -->
+      <div id="login-overlay">
+        <h3>請先完成身份驗證以啟動 AI 功能</h3>
+        <p>限制 [僅Google用戶] 可以使用</p>
+        <div style="display: flex; justify-content: center; margin-top: 20px;">
+          <div id="g_id_onload"
+              data-client_id="==========Google Cloud OAuth2 ID=========="
+              data-callback="onSignIn"
+              data-auto_prompt="false">
+          </div>
+          <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="signin_with"></div>
+        </div>
+      </div>
+
+      <!-- 2. 主應用程式內容 -->
+      <div id="main-content">
+        <div class="card">
+          <div class="form-group">
+            <label>科目與單元名稱</label>
+            <input type="text" id="lpSubj" placeholder="例如：視覺藝術-色彩的情緒">
+          </div>
+          <div class="form-group">
+            <label>適用年級</label>
+            <select id="lpGrade">
+              <option>七年級</option><option>八年級</option><option>九年級</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>預計節數</label>
+            <input type="number" id="lpPeriod" value="1">
+          </div>
+          <div class="form-group">
+            <label>教案構想 / 掃描文字 (可由 AI 自動媒合 SEL 指標)</label>
+            <textarea id="lpPrompt" rows="5" placeholder="請描述教學目標，或貼上課綱照片辨識後的內容..."></textarea>
+          </div>
+          
+          <button id="genBtn" onclick="generateLesson()">✨ 運用 UbD 模式生成教案</button>
+          
+          <div id="loading">
+            <div class="loading-spinner"></div>
+            Gemini AI 正在為您規劃跨域教案...
+          </div>
+        </div>
+
+        <!-- 3. 結果輸出 -->
+        <div id="lpOutput" class="card">
+          <div id="lpMeta" style="font-weight: bold; color: var(--primary); margin-bottom: 10px;"></div>
+          <div id="lpContent"></div>
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid var(--bd);">
+          <button class="secondary" onclick="downloadWord()">📥 下載專業 Word 檔案 (.docx)</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script> <!-- 載入將內容編譯成 Docx 文件的函數庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+    <script>
+      let userToken = "";
+      let lastGeneratedContent = "";
+
+      const GAS_URL = "==========Google Apps Script(GAS)網頁應用程序部署網址==========";
+
+      function onSignIn(response) {
+        userToken = response.credential;
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        console.log("登入成功");
+      }
+
+      async function generateLesson() {
+        const subj = document.getElementById('lpSubj').value;
+        const grade = document.getElementById('lpGrade').value;
+        const period = document.getElementById('lpPeriod').value;
+        const prompt = document.getElementById('lpPrompt').value;
+
+        if (!prompt) { alert("請輸入教學構想！"); return; }
+
+        document.getElementById('genBtn').disabled = true;
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('lpOutput').style.display = 'none';
+
+        const finalPrompt = `
+        請以專業且有經驗的國中資訊科技教師身份，使用 UbD (Understanding by Design) 模式，為以下課程設計一份完整、詳細、自然流暢的教案。
+
+        課程資訊：
+        科目與單元：${subj}
+        年級：${grade}
+        節數：${period} 節
+
+        請嚴格按照以下結構輸出，並且**全部使用純文字格式**，不要出現任何表格、Markdown 符號（不要 ##、###、|、--- 等），也不要使用項目符號列表（- 或 *），改用數字編號或自然段落。
+
+        請直接輸出完整教案，不要加入任何額外說明，不要說「以下是教案」，不要中斷：
+
+        課程基本資訊
+        課程名稱：...
+        年級：九年級
+        節數：1 節
+
+        1. 階段一：設定目標 (Desired Results)
+        核心理解：
+        這裡請詳細寫出 4 到 6 點核心理解，每點獨立成段或用數字清楚區分。
+
+        核心問題：
+        這裡請列出 4 到 5 個核心問題，每個問題獨立成行並編號。
+
+        學生將知道：
+        請詳細說明學生在這堂課結束後應該知道哪些重要概念。
+
+        學生將能做：
+        請詳細說明學生在這堂課結束後應該能做到哪些事情。
+
+        2. 階段二：決定證據 (Acceptable Evidence)
+        請設計一項 PBL 數位敘事評量任務。
+        包含任務說明、成果形式，以及評量重點。用自然段落清楚描述。
+
+        3. 階段三：規劃學習經驗 (Learning Experiences)
+        請詳細規劃這 45 分鐘的教學流程。
+        請按照時間順序，分段描述每個階段要做什麼活動、如何進行、以及如何整合 AI 工具。
+        例如：
+        0-5 分鐘：導入階段……
+        5-15 分鐘：第一個發展活動……
+        請把每個時間區段都寫清楚。
+
+        4. 評量規準
+        請用自然文字描述這堂課的主要評量方式，以及不同表現水準（優、良、中、需加強）的具體表現。
+
+        請使用適合國中教師閱讀的自然、專業語言，直接開始輸出完整教案。
+        `;
+
+        try {
+          const r = await fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+              token: userToken,
+              prompt: finalPrompt
+            })
+          });
+          const res = await r.json();
+          if (!res.success) throw new Error(res.error);
+
+          lastGeneratedContent = res.text;
+          document.getElementById('lpContent').innerText = lastGeneratedContent;
+          document.getElementById('lpMeta').innerText = `【UbD 跨域教案】${subj} - ${grade}`;
+          document.getElementById('lpOutput').style.display = 'block';
+          document.getElementById('lpOutput').scrollIntoView({ behavior: 'smooth' });
+
+        } catch (e) {
+          alert("生成失敗：" + e.message);
+        } finally {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('genBtn').disabled = false;
+        }
+      }
+
+      async function downloadWord() {
+        if (!lastGeneratedContent) {
+          alert("沒有可下載的教案內容！");
+          return;
+        }
+
+        const maxWait = 4000;
+        const startTime = Date.now();
+
+        while (typeof window.docx === "undefined") {
+          if (Date.now() - startTime > maxWait) {
+            alert("docx 庫載入失敗，請重新整理頁面。\n\n如果還是失敗，請按 F12 → Console 把紅色錯誤貼給我。");
+            return;
+          }
+          await new Promise(r => setTimeout(r, 150));
+        }
+
+        const { Document, Packer, Paragraph, TextRun, HeadingLevel } = window.docx;
+
+        const lines = lastGeneratedContent.split('\n').filter(line => line.trim() !== "");
+
+        const doc = new Document({
+          sections: [{
+            properties: {
+              page: {
+                margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+              }
+            },
+            children: [
+              new Paragraph({
+                text: "大觀領航．美感 AI 跨域整合教案",
+                heading: HeadingLevel.TITLE,
+                spacing: { after: 400 }
+              }),
+              new Paragraph({
+                text: document.getElementById('lpMeta').innerText || "UbD 跨域 SEL 教案",
+                heading: HeadingLevel.HEADING_1,
+                spacing: { after: 300 }
+              }),
+              ...lines.map(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return null;
+                const isHeading = /^(階段|1\.|2\.|3\.|4\.|\d+\.)/.test(trimmed) || 
+                                trimmed.includes("階段一") || trimmed.includes("階段二") || trimmed.includes("階段三");
+                return new Paragraph({
+                  children: [new TextRun({ 
+                    text: trimmed, 
+                    size: isHeading ? 28 : 24, 
+                    bold: isHeading 
+                  })],
+                  spacing: { after: 180 }
+                });
+              }).filter(Boolean)
+            ]
+          }]
+        });
+
+        try {
+          const blob = await Packer.toBlob(doc);
+          const subject = (document.getElementById('lpSubj').value || "未命名").trim();
+          const fileName = `大觀國中教案_${subject}_${new Date().toLocaleDateString('zh-TW')}.docx`;
+          saveAs(blob, fileName);
+          console.log("✅ Word 檔案下載成功");
+        } catch (error) {
+          console.error("下載失敗:", error);
+          alert("Word 產生失敗，請按 F12 查看 Console 錯誤並貼給我。");
+        }
+      }
+    </script>
+
+  </body>
+</html>
