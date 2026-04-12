@@ -42,6 +42,9 @@
     <header>
       <h1>大觀領航．美感 AI</h1>
       <p>基於 UbD 逆向設計的 SEL 課綱評估工具</p>
+      <button onclick="logout()" style="width:auto; padding:8px 16px; margin-top:10px;">
+        登出
+      </button>
     </header>
 
     <div class="app-container">
@@ -112,8 +115,12 @@
 
       function onSignIn(response) {
         userToken = response.credential;
+      
+        localStorage.setItem("google_token", userToken);
+      
         document.getElementById('login-overlay').style.display = 'none';
         document.getElementById('main-content').style.display = 'block';
+      
         console.log("登入成功");
       }
 
@@ -270,6 +277,29 @@
           alert("Word 產生失敗，請按 F12 查看 Console 錯誤並貼給我。");
         }
       }
+
+      function logout() {
+        userToken = "";
+        localStorage.removeItem("google_token");
+      
+        document.getElementById('main-content').style.display = 'none';
+        document.getElementById('login-overlay').style.display = 'block';
+      
+        console.log("已登出");
+      }
+
+      window.onload = () => {
+        const savedToken = localStorage.getItem("google_token");
+      
+        if (savedToken) {
+          userToken = savedToken;
+      
+          document.getElementById('login-overlay').style.display = 'none';
+          document.getElementById('main-content').style.display = 'block';
+      
+          console.log("自動登入成功");
+        }
+      };
     </script>
 
   </body>
