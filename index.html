@@ -42,7 +42,7 @@
     <header>
       <h1>大觀領航．美感 AI</h1>
       <p>基於 UbD 逆向設計的 SEL 課綱評估工具</p>
-      <button onclick="logout()" style="width:auto; padding:8px 16px; margin-top:10px;">
+      <button onclick="logout()" style="width:auto; padding:8px 16px; margin-top:10px; display: none;">
         登出
       </button>
     </header>
@@ -117,7 +117,9 @@
         userToken = response.credential;
       
         localStorage.setItem("google_token", userToken);
-      
+
+        document.getElementById('logoutBtn').style.display = 'inline-block';
+        
         document.getElementById('login-overlay').style.display = 'none';
         document.getElementById('main-content').style.display = 'block';
       
@@ -284,6 +286,8 @@
       
         document.getElementById('main-content').style.display = 'none';
         document.getElementById('login-overlay').style.display = 'block';
+
+        document.getElementById('logoutBtn').style.display = 'none';
       
         console.log("已登出");
       }
@@ -296,6 +300,8 @@
       
           document.getElementById('login-overlay').style.display = 'none';
           document.getElementById('main-content').style.display = 'block';
+
+          document.getElementById('logoutBtn').style.display = 'inline-block';
       
           console.log("自動登入成功");
         }
